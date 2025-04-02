@@ -3,7 +3,7 @@ const Listing = require("../models/listing");
 const Booking = require("../models/booking");
 const Razorpay = require("razorpay");  // Import Razorpay
 const crypto = require("crypto");
-
+//adddeddd
 // Initialize Razorpay with your key and secret from .env
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -184,11 +184,14 @@ module.exports.processPayment = async (req, res) => {
         try {
             const razorpayOrder = await razorpay.orders.create(orderOptions);
             console.log("✅ Razorpay Order Created:", razorpayOrder);
+            const listing = await Listing.findById(listingId).populate({ path: "owner", model: "Host" });
+
+            console.log("🔎 Listing Owner ID:", listing.owner);
 
             const newBooking = new Booking({
                 property: listingId,
                 guest: req.user._id,
-                host: listing.owner,
+                host: listing.owner._id,  // ✅ Store the ID, NOT username
                 bookedDates: selectedDates,
                 totalPrice,
                 status: "Pending",
@@ -291,43 +294,69 @@ module.exports.processPayment = async (req, res) => {
 // ✅ **Verify Payment & Confirm Booking**
 module.exports.verifyPayment = async (req, res) => {
     try {
-        const { paymentId, orderId, signature, bookingId } = req.body;
+        const { paymentId, orderId, signature } = req.body;
 
-        console.log("🛠️ Verifying Payment:", { paymentId, orderId, signature, bookingId });
+        // ✅ Find existing booking associated with orderId
+        let booking = await Booking.findOne({ orderId });
 
-        if (!paymentId || !orderId || !signature || !bookingId) {
-            throw new Error("Missing payment details!");
-        }
-
-        // Verify payment signature
-        const generatedSignature = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-            .update(orderId + "|" + paymentId)
-            .digest("hex");
-
-        if (generatedSignature !== signature) {
-            throw new Error("Invalid payment signature!");
-        }
-
-        // Update Booking Status
-        const booking = await Booking.findById(bookingId);
         if (!booking) {
-            throw new Error("Booking not found!");
+            console.error("❌ No booking found for orderId:", orderId);
+            return res.status(400).json({ success: false, message: "Invalid booking." });
         }
 
-        booking.status = "Confirmed";
+        // ✅ Update booking status & store payment ID
         booking.razorpayPaymentId = paymentId;
+        booking.status = "Confirmed";
         await booking.save();
 
-        console.log("✅ Payment Verified & Booking Confirmed!");
+        console.log("✅ Payment Verified & Booking Confirmed:", booking._id);
 
-        return res.json({ success: true, message: "Payment verified successfully!", bookingId });
-
-    } catch (err) {
-        console.error("❌ Payment Verification Failed:", err.message);
-        return res.status(400).json({ success: false, message: err.message });
+        res.json({ success: true, bookingId: booking._id });
+    } catch (error) {
+        console.error("❌ Error verifying payment:", error);
+        res.status(500).json({ success: false, message: "Payment verification failed." });
     }
 };
+
+// module.exports.verifyPayment = async (req, res) => {
+//     try {
+//         const { paymentId, orderId, signature, bookingId } = req.body;
+
+//         console.log("🛠️ Verifying Payment:", { paymentId, orderId, signature, bookingId });
+
+//         if (!paymentId || !orderId || !signature || !bookingId) {
+//             throw new Error("Missing payment details!");
+//         }
+
+//         // Verify payment signature
+//         const generatedSignature = crypto
+//             .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+//             .update(orderId + "|" + paymentId)
+//             .digest("hex");
+
+//         if (generatedSignature !== signature) {
+//             throw new Error("Invalid payment signature!");
+//         }
+
+//         // Update Booking Status
+//         const booking = await Booking.findById(bookingId);
+//         if (!booking) {
+//             throw new Error("Booking not found!");
+//         }
+
+//         booking.status = "Confirmed";
+//         booking.razorpayPaymentId = paymentId;
+//         await booking.save();
+
+//         console.log("✅ Payment Verified & Booking Confirmed!");
+
+//         return res.json({ success: true, message: "Payment verified successfully!", bookingId });
+
+//     } catch (err) {
+//         console.error("❌ Payment Verification Failed:", err.message);
+//         return res.status(400).json({ success: false, message: err.message });
+//     }
+// };
 
 // module.exports.processPayment = async (req, res) => {
 //     try {
@@ -624,6 +653,24 @@ module.exports.verifyPayment = async (req, res) => {
 //     return res.status(200).send({ success: true, bookingId: booking._id });
 // };
 
+// module.exports.getConfirmationPage = async (req, res) => {
+//     const { bookingId } = req.query;
+
+//     if (!bookingId) {
+//         req.flash("error", "Invalid booking.");
+//         return res.redirect("/listings");
+//     }
+
+//     const booking = await Booking.findById(bookingId).populate("property")  .populate("guest")
+//     .populate("host");;
+
+//     if (!booking) {
+//         req.flash("error", "Booking not found.");
+//         return res.redirect("/listings");
+//     }
+
+//     res.render("bookings/confirmation", { booking, currUser: req.user });
+// };
 module.exports.getConfirmationPage = async (req, res) => {
     const { bookingId } = req.query;
 
@@ -632,13 +679,17 @@ module.exports.getConfirmationPage = async (req, res) => {
         return res.redirect("/listings");
     }
 
-    const booking = await Booking.findById(bookingId).populate("property")  .populate("guest")
-    .populate("host");;
+    const booking = await Booking.findById(bookingId)
+         .populate({ path: "host", select: "username email" })  // Select only required fields
+    .populate({ path: "guest", select: "username email" })
+    .populate("property");
 
     if (!booking) {
         req.flash("error", "Booking not found.");
         return res.redirect("/listings");
     }
+
+    console.log("✅ Loaded Booking Confirmation for ID:", bookingId);
 
     res.render("bookings/confirmation", { booking, currUser: req.user });
 };

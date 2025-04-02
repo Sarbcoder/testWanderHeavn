@@ -71,42 +71,50 @@ async function startPayment() {
         }
 
         var options = {
-            key: data.key,
-            amount: data.amount,
-            currency: data.currency,
-            name: "Wanderheavn",
-            description: "Booking Payment",
-            order_id: data.orderId,
-            handler: async function (response) {
-                let verifyResponse = await fetch(`/listings/${listingId}/payment/verify`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        paymentId: response.razorpay_payment_id,
-                        orderId: response.razorpay_order_id,
-                        signature: response.razorpay_signature,
-                        bookingId: data.bookingId,
-                    }),
-                });
+    key: data.key,
+    amount: data.amount,
+    currency: data.currency,
+    name: "WanderHeavn",
+    description: "Booking Payment",
+    order_id: data.orderId,
+    handler: async function (response) {
+        try {
+            let verifyResponse = await fetch(`/listings/${listingId}/payment/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    paymentId: response.razorpay_payment_id,
+                    orderId: response.razorpay_order_id,
+                    signature: response.razorpay_signature,
+                }),
+            });
 
-                let verifyData = await verifyResponse.json();
-                if (verifyData.success) {
-                    window.location.href = `/bookings/confirmation?bookingId=${verifyData.bookingId}`;
-                } else {
-                    alert(verifyData.message || "❌ Payment verification failed.");
-                }
-            },
-            prefill: {
-                name: "test",
-                email: "test",
-            },
-            theme: {
-                color: "#3399cc",
-            },
-        };
+            let verifyData = await verifyResponse.json();
+            console.log("✅ Payment Verification Response:", verifyData);
 
-        var rzp1 = new Razorpay(options);
-        rzp1.open();
+            if (!verifyData.bookingId) {
+                alert("❌ Booking ID is missing from the server response.");
+                return;
+            }
+
+            window.location.href = `/listings/${listingId}/confirmation?bookingId=${verifyData.bookingId}`;
+        } catch (error) {
+            console.error("❌ Error verifying payment:", error);
+            alert("❌ Payment verification failed.");
+        }
+    },
+    prefill: {
+        name: "test",
+        email: "test",
+    },
+    theme: {
+        color: "#3399cc",
+    },
+};
+
+var rzp1 = new Razorpay(options);
+rzp1.open();
+
     } catch (error) {
         console.error("❌ Error processing payment:", error);
         alert("❌ Error processing payment.");

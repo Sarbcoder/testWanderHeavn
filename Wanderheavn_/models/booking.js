@@ -34,8 +34,8 @@ const bookingSchema = new Schema({
     razorpayPaymentId: { type: String },  // To store payment ID after success
     status: {
         type: String,
-        enum: ["Active", "Already booked", "Paid", "Pending"],
-        default: "Pending"
+        enum: ["Pending", "Paid", "Cancelled", "Confirmed"], // ✅ Add "Confirmed"
+        required: true,
     }
 }, { timestamps: true });
 
