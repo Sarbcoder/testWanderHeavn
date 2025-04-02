@@ -1,0 +1,36 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="container mt-5">
+    <h2>My Bookings</h2>
+    <% if (bookings.length === 0) { %>
+        <p>You have no bookings yet.</p>
+    <% } else { %>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Listing</th>
+                    <th>Booked Dates</th>
+                    <th>Total Price</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% bookings.forEach(booking => { %>
+                    <tr>
+                        <td>
+                            <a href="/listings/<%= booking.property._id %>">
+                                <%= booking.property.title %>
+                            </a>
+                        </td>
+                        <td>
+                            <%= booking.bookedDates.join(", ") %>
+                        </td>
+                        <td>₹<%= booking.totalPrice.toLocaleString("en-IN") %></td>
+                        <td><%= booking.status %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    <% } %>
+<a href="/listings" class="btn btn-secondary">Back</a>
+</div>

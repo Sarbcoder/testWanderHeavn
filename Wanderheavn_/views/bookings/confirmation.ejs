@@ -1,0 +1,11 @@
+<% layout("/layouts/boilerplate") %>
+<div class="container mt-5 text-center"></div>
+<h2>🎉 Booking Confirmed!</h2>
+<p>Your stay at <strong><%= booking.property.title %></strong> is confirmed.</p>
+<p>Location: <%= booking.property.location %></p>
+<p><strong>Check-in:</strong> <%= booking.bookedDates[0] %> | <strong>Check-out:</strong> <%= booking.bookedDates[booking.bookedDates.length - 1] %></p>
+<p>Total Paid: &#8377; <%= booking.totalPrice.toLocaleString("en-IN") %></p>
+
+<a href="/listings">Back to Listings</a>
+
+</div>
